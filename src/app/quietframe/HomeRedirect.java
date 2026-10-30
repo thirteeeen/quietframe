@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
 import java.util.ArrayList;
@@ -24,6 +25,9 @@ import java.util.List;
 //
 // Approach adapted from TV Detox's HomeButton (github.com/Ansub/tv-detox, MIT).
 public class HomeRedirect extends AccessibilityService {
+    // See what it decides with: adb logcat -s QuietFrame
+    private static final String TAG = "QuietFrame";
+
     // Home screens we know, used when Android can't say which launcher is the system home.
     // Google TV, then the classic Android TV launcher (BAUHN and other Android TV 9-11 sets).
     private static final ComponentName[] KNOWN_HOMES = {
@@ -45,6 +49,7 @@ public class HomeRedirect extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         homes = homes(this);
+        Log.i(TAG, "Home button service connected; watching " + homes);
         // Only hear from the home screen's own package, not every app's windows.
         AccessibilityServiceInfo info = getServiceInfo();
         if (info != null && !homes.isEmpty()) {
@@ -58,8 +63,15 @@ public class HomeRedirect extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
-        if (!isHomeWindow(String.valueOf(event.getPackageName()), String.valueOf(event.getClassName()))) return;
-        if (!setupComplete() || pausedThisBoot(this)) return;
+        String pkg = String.valueOf(event.getPackageName()), cls = String.valueOf(event.getClassName());
+        if (!isHomeWindow(pkg, cls)) {
+            Log.i(TAG, "Ignored window " + pkg + "/" + cls);
+            return;
+        }
+        if (!setupComplete() || pausedThisBoot(this)) {
+            Log.i(TAG, "Home opened, but redirect is paused (TV setup, or the TV's own home was chosen)");
+            return;
+        }
 
         long now = SystemClock.elapsedRealtime();
         if (now - lastRedirect < DEBOUNCE_MS) return;
@@ -71,15 +83,19 @@ public class HomeRedirect extends AccessibilityService {
         if (failures >= MAX_FAILURES) {
             // QuietFrame keeps failing to open: leave Home with the TV until it's opened by hand.
             p.edit().remove("pending").putInt("failures", failures).commit();
+            Log.w(TAG, "QuietFrame failed to open " + failures + " times; redirect stopped until it's opened by hand");
             return;
         }
         // Written before launching, in case a crash takes this service down with the activity.
         if (!p.edit().putLong("pending", now).putInt("failures", failures).commit()) return;
         lastRedirect = now;
+        Log.i(TAG, "Home opened (" + cls + "); opening QuietFrame");
         try {
             startActivity(new Intent(this, HomeActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
-        } catch (RuntimeException ignored) {}
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Couldn't open QuietFrame", e);
+        }
     }
 
     @Override
