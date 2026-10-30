@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.quietframe" android:versionCode="1" android:versionName="0.1.0">
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+    <!-- Android 11+ only lists apps a launcher declares it wants to see. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent><action android:name="android.settings.SETTINGS" /></intent>
+        <intent><action android:name="android.settings.ACCESSIBILITY_SETTINGS" /></intent>
+        <!-- Google TV's own home screen: opened on request, and watched by HomeRedirect. -->
+        <package android:name="com.google.android.apps.tv.launcherx" />
+    </queries>
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <application android:label="QuietFrame" android:allowBackup="false"
+        android:icon="@drawable/icon" android:banner="@drawable/banner"
+        android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <!-- No HOME category on purpose: Google TV's home stays the system home, and HomeRedirect
+             opens this one over it. Nothing has to be disabled, so nothing can bootloop. -->
+        <activity android:name=".HomeActivity"
+            android:exported="true"
+            android:launchMode="singleTask" android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode|locale">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service android:name=".HomeRedirect" android:label="QuietFrame Home button" android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/home_redirect" />
+        </service>
+    </application>
+</manifest>

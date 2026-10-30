@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 tile in Google TV's apps row: a picture frame on a dusk gradient. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#2B1E3F" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#6D597A" android:fillAlpha="0.7" android:pathData="M0,110 Q80,70 160,105 T320,95 V180 H0 Z" />
+    <path android:fillColor="#E07A5F" android:fillAlpha="0.8" android:pathData="M0,140 Q100,110 200,138 T320,130 V180 H0 Z" />
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="5" android:fillColor="#00000000"
+        android:pathData="M110,45 h100 v90 h-100 z" />
+    <path android:fillColor="#F2CC8F" android:pathData="M175,70 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+</vector>
