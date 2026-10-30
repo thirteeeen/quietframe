@@ -704,7 +704,7 @@ public class HomeActivity extends Activity {
         list.addView(tagged(panelRow("Apps on Home", homeKeys().size() + "  ›", v -> openEditor(null)), "s:editor"));
         list.addView(tagged(panelRow("Home button opens QuietFrame",
                 HomeRedirect.isEnabled(this) ? "On  ›" : "Off  ›", v -> openHomeButtonHelp()), "s:redirect"));
-        list.addView(tagged(panelRow("Open Google TV home", "›", v -> leaveToGoogleTv()), "s:gtv"));
+        list.addView(tagged(panelRow("Open the TV's own home", "›", v -> leaveToTvHome()), "s:tvhome"));
         list.addView(tagged(panelRow("TV settings", "›", v -> startSafely(new Intent(Settings.ACTION_SETTINGS))), "s:tv"));
 
         list.addView(heading("About"));
@@ -773,8 +773,8 @@ public class HomeActivity extends Activity {
     private void openHomeButtonHelp() {
         FrameLayout holder = new FrameLayout(this);
         LinearLayout card = card(holder, "Home button",
-                "Google TV handles the Home button itself. QuietFrame's accessibility service notices "
-                        + "when Google TV's home opens and opens QuietFrame over it. Nothing is turned off, "
+                "The TV handles the Home button itself. QuietFrame's accessibility service notices "
+                        + "when the TV's own home opens and opens QuietFrame over it. Nothing is turned off, "
                         + "so switching it off puts Home straight back.\n\n"
                         + "Turn on: Accessibility › QuietFrame Home button. The install script can also do this for you.\n\n"
                         + "Right now it's " + (HomeRedirect.isEnabled(this) ? "on." : "off."), 620, false);
@@ -1011,20 +1011,20 @@ public class HomeActivity extends Activity {
         openPanel(holder, first, 0x99000000);
     }
 
-    // Back on Home offers Google TV's own home rather than doing nothing.
+    // Back on Home offers the TV's own home rather than doing nothing.
     private void confirmLeave() {
         FrameLayout holder = new FrameLayout(this);
-        LinearLayout card = card(holder, "Open Google TV home?",
-                "Home goes to Google TV until you open QuietFrame again from its apps row, or restart the TV.", 560, false);
+        LinearLayout card = card(holder, "Open the TV's own home?",
+                "Home goes to the TV's own home until you open QuietFrame again from its apps row, or restart the TV.", 560, false);
         LinearLayout stay = panelRow("Stay here", "", v -> closePanel());
         card.addView(stay, linear(-1, -2, 0, px(20), 0, 0));
-        card.addView(panelRow("Open Google TV home", "›", v -> leaveToGoogleTv()));
+        card.addView(panelRow("Open the TV's own home", "›", v -> leaveToTvHome()));
         openPanel(holder, stay, 0x99000000);
     }
 
-    private void leaveToGoogleTv() {
+    private void leaveToTvHome() {
         closeAllPanels();
-        if (!HomeRedirect.openGoogleTv(this)) toast("Google TV's home isn't on this TV.");
+        if (!HomeRedirect.openTvHome(this)) toast("Couldn't find the TV's own home screen.");
     }
 
     // ---- Small helpers ---------------------------------------------------------------------

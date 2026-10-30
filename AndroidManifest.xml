@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="app.quietframe" android:versionCode="1" android:versionName="0.1.0">
+    package="app.quietframe" android:versionCode="2" android:versionName="0.2.0">
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
     <!-- Android 11+ only lists apps a launcher declares it wants to see. -->
     <queries>
@@ -10,15 +10,20 @@
         </intent>
         <intent><action android:name="android.settings.SETTINGS" /></intent>
         <intent><action android:name="android.settings.ACCESSIBILITY_SETTINGS" /></intent>
-        <!-- Google TV's own home screen: opened on request, and watched by HomeRedirect. -->
+        <!-- The TV's own home screen (Google TV or classic Android TV): watched by HomeRedirect. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
         <package android:name="com.google.android.apps.tv.launcherx" />
+        <package android:name="com.google.android.tvlauncher" />
     </queries>
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <application android:label="QuietFrame" android:allowBackup="false"
         android:icon="@drawable/icon" android:banner="@drawable/banner"
         android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
-        <!-- No HOME category on purpose: Google TV's home stays the system home, and HomeRedirect
+        <!-- No HOME category on purpose: the TV's own launcher stays the system home, and HomeRedirect
              opens this one over it. Nothing has to be disabled, so nothing can bootloop. -->
         <activity android:name=".HomeActivity"
             android:exported="true"

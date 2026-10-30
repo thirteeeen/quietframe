@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs QuietFrame on a Google TV over the network and makes Home open it.
+# Installs QuietFrame on a Google TV or Android TV over the network and makes Home open it.
 #
 #   sh install.sh <TV_IP>             Android TV 11 style network debugging (port 5555)
 #   sh install.sh <TV_IP>:<PORT>      Wireless debugging, after `adb pair` (see README)
@@ -14,7 +14,6 @@ TV=$1
 APK=${APK:-out/quietframe.apk}
 PKG=app.quietframe
 SERVICE=$PKG/.HomeRedirect
-GOOGLE_TV=com.google.android.apps.tv.launcherx
 
 [ -n "$TV" ] || { sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
 command -v adb >/dev/null || { echo "adb not found. macOS: brew install android-platform-tools" >&2; exit 1; }
@@ -33,10 +32,7 @@ done
 A="adb -s $TV"
 
 echo "TV: $($A shell getprop ro.product.manufacturer | tr -d '\r') $($A shell getprop ro.product.model | tr -d '\r'), Android $($A shell getprop ro.build.version.release | tr -d '\r')"
-if ! $A shell pm path "$GOOGLE_TV" 2>/dev/null | grep -q package:; then
-  echo "Note: Google TV's home ($GOOGLE_TV) isn't on this TV, so the Home button redirect won't do anything."
-  echo "      QuietFrame still installs and opens from the apps row."
-fi
+echo "Home screen: $($A shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1 | tr -d '\r')"
 
 echo "Installing $APK"
 $A install -r "$APK"

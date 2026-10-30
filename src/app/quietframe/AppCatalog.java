@@ -15,7 +15,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-// The TV apps Google TV would show in its own apps row.
+// The TV apps the TV's own launcher would show in its apps row.
 final class AppCatalog {
     static final class App {
         final ComponentName component;

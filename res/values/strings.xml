@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="redirect_description">Makes the remote\'s Home button open QuietFrame. When Google TV\'s home screen opens, QuietFrame opens over it. Google TV\'s home is never turned off, so switching this off puts Home straight back.</string>
+    <string name="redirect_description">Makes the remote\'s Home button open QuietFrame. When the TV\'s own home screen opens, QuietFrame opens over it. The TV\'s home is never turned off, so switching this off puts Home straight back.</string>
 </resources>

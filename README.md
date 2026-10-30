@@ -1,7 +1,8 @@
 # QuietFrame
 
 A quieter home screen for Google TV: a photograph, the time and your apps, made for the remote.
-It was built for a **BAUHN 62" Google TV** (ALDI), but should work on any Google TV.
+It was built for a **BAUHN 62" smart TV** (ALDI), and works with both the newer Google TV home
+screen and the classic Android TV one (`com.google.android.tvlauncher`), which the BAUHN uses.
 
 Inspired by [CleanFrame](https://github.com/nthnclrk/CleanFrame), a calm home screen for Samsung
 The Frame. CleanFrame is a Tizen web app, so it can't run on Google TV. This is a separate Android
