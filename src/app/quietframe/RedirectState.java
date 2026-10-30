@@ -8,9 +8,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
 
-// State shared by the Home button service and the home screen, which run in separate processes
-// (so the home screen's memory can be reclaimed while you watch something). SharedPreferences
-// caches per process and would go stale, so this is a tiny file read fresh every time.
+// State shared by the Home button service and the home screen. They share a process now, but a
+// file read fresh every time stays correct if they're ever split again (SharedPreferences caches
+// per process and would go stale).
 final class RedirectState {
     private static final String FILE = "home_redirect.properties";
 

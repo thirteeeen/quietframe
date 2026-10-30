@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="app.quietframe" android:versionCode="4" android:versionName="0.3.0">
+    package="app.quietframe" android:versionCode="5" android:versionName="0.3.1">
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
     <!-- Android 11+ only lists apps a launcher declares it wants to see. -->
     <queries>
@@ -36,11 +36,10 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- Its own small process: Android keeps a running accessibility service in memory for good,
-             and in the app's process that would pin the whole home screen too. Apart, the home
-             screen's memory can go to whatever you're watching. -->
+        <!-- Same process as the home screen on purpose. In its own process (0.3.0) the service could
+             no longer open HomeActivity on a BAUHN Android TV 11 set: Android dropped the start
+             silently. HomeActivity lets go of its wallpaper and views when hidden instead. -->
         <service android:name=".HomeRedirect" android:label="QuietFrame Home button" android:exported="true"
-            android:process=":redirect"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

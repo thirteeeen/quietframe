@@ -39,7 +39,7 @@ public class HomeRedirect extends AccessibilityService {
     // Launchers fire several window events per Home press.
     private static final long DEBOUNCE_MS = 1500;
     // A redirect that hasn't reached HomeActivity.onResume in this long counts as failed. Generous,
-    // because the home screen's process may have been reclaimed and need a cold start.
+    // because a slow TV can take a few seconds to bring the home screen back.
     private static final long LAUNCH_GRACE_MS = 6000;
     private static final int MAX_FAILURES = 3;
 
@@ -152,7 +152,6 @@ public class HomeRedirect extends AccessibilityService {
     }
 
     // QuietFrame is on screen: the last redirect worked, and Home should come here again.
-    // Runs in the home screen's process, so it only touches the shared file.
     static void onHomeResumed(Context c) {
         Properties p = RedirectState.read(c);
         if (p.isEmpty()) return;
