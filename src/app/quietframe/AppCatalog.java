@@ -6,6 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 
 import java.text.Collator;
@@ -40,6 +43,9 @@ final class AppCatalog {
             "7plus", "9Now", "10", "10 Play", "Stan", "Kayo", "BINGE", "Plex", "Spotify",
     };
     private static final int DEFAULT_COUNT = 7;
+    // Largest sizes a picture is drawn at, in dp: a focused Home tile (176 wide, scaled 1.1) and its icon.
+    private static final float BANNER_DP = 176 * 1.1f;
+    private static final float ICON_DP = 56;
 
     private AppCatalog() {}
 
@@ -48,15 +54,17 @@ final class AppCatalog {
         PackageManager pm = c.getPackageManager();
         Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         List<App> apps = new ArrayList<>();
+        float density = c.getResources().getDisplayMetrics().density;
+        int bannerW = Math.round(BANNER_DP * density), iconW = Math.round(ICON_DP * density);
         for (ResolveInfo ri : pm.queryIntentActivities(query, 0)) {
             if (ri.activityInfo == null || c.getPackageName().equals(ri.activityInfo.packageName)) continue;
             ComponentName cn = new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name);
             Drawable banner = null;
             Drawable icon = null;
             try {
-                banner = ri.activityInfo.loadBanner(pm);
-                icon = ri.loadIcon(pm);
-            } catch (RuntimeException ignored) {}
+                banner = shrink(c, ri.activityInfo.loadBanner(pm), bannerW, bannerW * 9 / 16);
+                icon = shrink(c, ri.loadIcon(pm), iconW, iconW);
+            } catch (RuntimeException | OutOfMemoryError ignored) {}
             apps.add(new App(cn, String.valueOf(ri.loadLabel(pm)).trim(), icon, banner));
         }
         final Collator collator = Collator.getInstance(Locale.getDefault());
@@ -67,6 +75,16 @@ final class AppCatalog {
             }
         });
         return apps;
+    }
+
+    // Redraws a picture at the size it's shown. Apps' own banners are often several times larger,
+    // and holding the original keeps that app's resources loaded too. Returns null for null.
+    private static Drawable shrink(Context c, Drawable d, int w, int h) {
+        if (d == null) return null;
+        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        d.setBounds(0, 0, w, h);
+        d.draw(new Canvas(b));
+        return new BitmapDrawable(c.getResources(), b);
     }
 
     static List<String> defaults(List<App> apps) {

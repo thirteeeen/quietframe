@@ -110,8 +110,18 @@ final class Wallpapers {
         while (o.outWidth / (sample * 2) >= width && o.outHeight / (sample * 2) >= height) sample *= 2;
         o = new BitmapFactory.Options();
         o.inSampleSize = sample;
+        // Photos have no transparency, so 16-bit colour halves the memory without visible loss.
+        o.inPreferredConfig = Bitmap.Config.RGB_565;
         try {
-            return BitmapFactory.decodeFile(f.getPath(), o);
+            Bitmap b = BitmapFactory.decodeFile(f.getPath(), o);
+            if (b == null) return null;
+            // Sampling only halves, so a photo can still be up to twice the screen. Scale the rest.
+            float scale = Math.max((float) width / b.getWidth(), (float) height / b.getHeight());
+            if (scale >= .8f) return b;
+            Bitmap fitted = Bitmap.createScaledBitmap(b, Math.round(b.getWidth() * scale),
+                    Math.round(b.getHeight() * scale), true);
+            if (fitted != b) b.recycle();
+            return fitted;
         } catch (OutOfMemoryError e) {
             return null;
         }

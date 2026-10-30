@@ -8,7 +8,9 @@ import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
@@ -61,7 +63,6 @@ public class HomeActivity extends Activity {
     private float density;
     private FrameLayout root, home, overlay;
     private ImageView backdrop;
-    private View scrimTop, scrimSide;
     private TextView clock, date;
     private View firstAppTile;
     private String lastAppTag, lastControlTag;
@@ -69,6 +70,8 @@ public class HomeActivity extends Activity {
     private List<AppCatalog.App> catalog = new ArrayList<>();
     private boolean catalogLoaded;
     private int backdropRequest;
+    // True while hidden with the wallpaper and Home views let go (see onStop).
+    private boolean released;
 
     // Home colours, set by applyTheme().
     private boolean photo;
@@ -132,14 +135,10 @@ public class HomeActivity extends Activity {
         root = new FrameLayout(this);
         backdrop = new ImageView(this);
         backdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        scrimTop = new View(this);
-        scrimSide = new View(this);
         home = new FrameLayout(this);
         home.setClipChildren(false);
         overlay = new FrameLayout(this);
         root.addView(backdrop, match());
-        root.addView(scrimTop, match());
-        root.addView(scrimSide, match());
         root.addView(home, match());
         root.addView(overlay, match());
         setContentView(root);
@@ -157,6 +156,30 @@ public class HomeActivity extends Activity {
         pkg.addAction(Intent.ACTION_PACKAGE_REPLACED);
         pkg.addDataScheme("package");
         registerReceiver(packageReceiver, pkg);
+    }
+
+    // Hidden behind another app: let go of the wallpaper bitmap and the Home views so the app
+    // being watched gets the memory. On a 1.4 GB TV that is worth a moment's redraw on return.
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (!panels.isEmpty()) return;
+        released = true;
+        ++backdropRequest;
+        backdrop.setImageDrawable(null);
+        home.removeAllViews();
+        clock = null;
+        date = null;
+        firstAppTile = null;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (!released) return;
+        released = false;
+        loadBackdrop();
+        buildHome();
     }
 
     @Override
@@ -215,21 +238,27 @@ public class HomeActivity extends Activity {
         plate = light ? 0xF016171A : 0xF2FFFFFF;
         plateInk = light ? 0xFFFFFFFF : 0xFF111214;
         glass = photo ? 0x33FFFFFF : light ? 0x14000000 : 0x1AFFFFFF;
-        root.setBackgroundColor(light ? 0xFFECE9E3 : 0xFF111214);
+        // On a photo the wallpaper covers everything: painting a colour under it is wasted fill.
+        if (photo) root.setBackground(null);
+        else root.setBackgroundColor(light ? 0xFFECE9E3 : 0xFF111214);
         backdrop.setVisibility(photo ? View.VISIBLE : View.GONE);
     }
 
     // Darkens the photo just where text sits, so it stays legible on any picture.
+    // Drawn as the wallpaper's foreground rather than as extra full-screen views: budget TV GPUs
+    // are short of fill rate, and every full-screen layer costs a whole screen of pixels a frame.
     private void applyScrims() {
+        if (!photo) {
+            backdrop.setForeground(null);
+            return;
+        }
         boolean dock = prefs.is(Prefs.LAYOUT, "dock");
-        scrimTop.setVisibility(photo ? View.VISIBLE : View.GONE);
-        scrimSide.setVisibility(photo ? View.VISIBLE : View.GONE);
-        if (!photo) return;
-        scrimTop.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x8C000000, 0x00000000, 0x00000000}));
-        scrimSide.setBackground(new GradientDrawable(
-                dock ? GradientDrawable.Orientation.BOTTOM_TOP : GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{0x99000000, 0x33000000, 0x00000000}));
+        backdrop.setForeground(new LayerDrawable(new Drawable[]{
+                new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                        new int[]{0x8C000000, 0x00000000, 0x00000000}),
+                new GradientDrawable(
+                        dock ? GradientDrawable.Orientation.BOTTOM_TOP : GradientDrawable.Orientation.LEFT_RIGHT,
+                        new int[]{0x99000000, 0x33000000, 0x00000000})}));
     }
 
     private void loadBackdrop() {
@@ -268,6 +297,7 @@ public class HomeActivity extends Activity {
                 catalog = apps;
                 catalogLoaded = true;
                 if (prefs.homeApps() == null) prefs.setHomeApps(AppCatalog.defaults(apps));
+                if (released) return;
                 buildHome();
                 if (!panels.isEmpty()) {
                     Panel top = panels.get(panels.size() - 1);
