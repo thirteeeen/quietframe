@@ -1,18 +1,22 @@
 package app.quietframe;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.AccessibilityServiceInfo;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -22,6 +26,11 @@ import java.util.Properties;
 // has bootlooped some devices. So nothing is turned off: this service is told when the TV's main
 // home window opens and starts QuietFrame over it. Switching the service off in
 // Settings > Accessibility puts Home straight back.
+//
+// Waking from standby or booting often shows the TV's home without opening it again, so no event
+// arrives. For those, the service remembers which app was last on screen (package names only; it
+// can't read the screen) and opens QuietFrame when the screen turns on over the TV's home, and
+// once shortly after boot.
 //
 // Approach adapted from TV Detox's HomeButton (github.com/Ansub/tv-detox, MIT).
 public class HomeRedirect extends AccessibilityService {
@@ -43,34 +52,80 @@ public class HomeRedirect extends AccessibilityService {
     private static final long LAUNCH_GRACE_MS = 6000;
     private static final int MAX_FAILURES = 3;
 
+    // Give the TV a moment after the screen turns on, or after boot, to settle on what it shows.
+    private static final long WAKE_DELAY_MS = 1500;
+    private static final long BOOT_DELAY_MS = 3000;
+    // Only a service that connects this soon after boot opens QuietFrame unasked. Later connects
+    // (the service restarting while you watch something) must not pull you out of an app.
+    private static final long BOOT_WINDOW_MS = 3 * 60 * 1000;
+    // Windows that sit over whatever is on screen without replacing it: the system UI (volume,
+    // notifications), system dialogs and screensavers. They don't change what was "last on screen".
+    private static final List<String> OVERLAYS = Arrays.asList("com.android.systemui", "android",
+            "com.google.android.apps.tv.dreamx", "com.google.android.backdrop", "com.android.dreams.basic");
+
     private static long lastRedirect = -DEBOUNCE_MS;
 
+    private final Handler handler = new Handler(Looper.getMainLooper());
     private List<ComponentName> homes = new ArrayList<>();
+    // The app whose window was last on screen, or null if none seen since the service started.
+    private String lastPackage;
+
+    private final BroadcastReceiver screenOn = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent i) {
+            handler.removeCallbacks(wakeCheck);
+            handler.postDelayed(wakeCheck, WAKE_DELAY_MS);
+        }
+    };
+
+    private final Runnable wakeCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (isHomePackage(lastPackage)) redirect("screen turned on over the TV's home");
+            else Log.i(TAG, "Screen turned on over " + lastPackage + "; leaving it");
+        }
+    };
+
+    private final Runnable bootCheck = new Runnable() {
+        @Override
+        public void run() {
+            // Nothing seen yet means the TV is still on the home it booted to.
+            if (lastPackage == null || isHomePackage(lastPackage)) redirect("TV started");
+        }
+    };
 
     @Override
     protected void onServiceConnected() {
         homes = homes(this);
         Log.i(TAG, "Home button service connected; watching " + homes);
-        // Only hear from the home screen's own package, not every app's windows.
-        AccessibilityServiceInfo info = getServiceInfo();
-        if (info != null && !homes.isEmpty()) {
-            String[] packages = new String[homes.size()];
-            for (int i = 0; i < packages.length; i++) packages[i] = homes.get(i).getPackageName();
-            info.packageNames = packages;
-            setServiceInfo(info);
-        }
+        registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
+        if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS) handler.postDelayed(bootCheck, BOOT_DELAY_MS);
+    }
+
+    @Override
+    public void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        try {
+            unregisterReceiver(screenOn);
+        } catch (IllegalArgumentException ignored) {}
+        super.onDestroy();
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         String pkg = String.valueOf(event.getPackageName()), cls = String.valueOf(event.getClassName());
+        if (!OVERLAYS.contains(pkg)) lastPackage = pkg;
         if (!isHomeWindow(pkg, cls)) {
-            Log.i(TAG, "Ignored window " + pkg + "/" + cls);
+            if (isHomePackage(pkg)) Log.i(TAG, "Ignored window " + pkg + "/" + cls);
             return;
         }
+        redirect("Home opened (" + cls + ")");
+    }
+
+    private void redirect(String why) {
         if (!setupComplete() || pausedThisBoot(this)) {
-            Log.i(TAG, "Home opened, but redirect is paused (TV setup, or the TV's own home was chosen)");
+            Log.i(TAG, why + ", but redirect is paused (TV setup, or the TV's own home was chosen)");
             return;
         }
 
@@ -93,7 +148,7 @@ public class HomeRedirect extends AccessibilityService {
         p.setProperty("pending", String.valueOf(now));
         if (!RedirectState.write(this, p)) return;
         lastRedirect = now;
-        Log.i(TAG, "Home opened (" + cls + "); opening QuietFrame");
+        Log.i(TAG, why + "; opening QuietFrame");
         try {
             startActivity(new Intent(this, HomeActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
@@ -104,6 +159,11 @@ public class HomeRedirect extends AccessibilityService {
 
     @Override
     public void onInterrupt() {}
+
+    private boolean isHomePackage(String pkg) {
+        for (ComponentName home : homes) if (home.getPackageName().equals(pkg)) return true;
+        return false;
+    }
 
     // Only the main home screen, not the launcher's search, apps or settings pages.
     private boolean isHomeWindow(String pkg, String cls) {
