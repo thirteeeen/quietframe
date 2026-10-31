@@ -1059,9 +1059,11 @@ public class HomeActivity extends Activity {
         openPanel(holder, stay, 0x99000000);
     }
 
-    // Google TV's Ambient mode settings (photos, albums, art), else the TV's screensaver settings.
-    // Android gives apps no way to start Ambient mode itself: on a Google TV Streamer its Photos
-    // slideshow isn't exported and SystemUI has no Somnambulator, so settings is as close as it gets.
+    // Google TV's "Ambient screensaver" page in Settings, the one with Start now (Settings > System >
+    // Ambient screensaver on a Google TV Streamer). Android gives apps no way to start Ambient mode
+    // itself: its Photos slideshow isn't exported and SystemUI has no Somnambulator there.
+    private static final String AMBIENT_PAGE = "com.google.android.tv.settings.ambient";
+    // Then Ambient mode's own settings (albums, art), for TVs without that page.
     private static final ComponentName[] AMBIENT_SETTINGS = {
             new ComponentName("com.google.android.apps.tv.dreamx",
                     "com.google.android.apps.tv.dreamx.settingsv2.TwoPanelActivity"),
@@ -1070,13 +1072,21 @@ public class HomeActivity extends Activity {
     };
 
     private void openScreensaverSettings() {
+        try {
+            startActivity(new Intent(AMBIENT_PAGE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            return;
+        } catch (RuntimeException ignored) {}
         for (ComponentName c : AMBIENT_SETTINGS) {
             try {
                 startActivity(new Intent(Intent.ACTION_MAIN).setComponent(c).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 return;
             } catch (RuntimeException ignored) {}
         }
-        startSafely(new Intent(Settings.ACTION_DREAM_SETTINGS));
+        try {
+            startActivity(new Intent(Settings.ACTION_DREAM_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (RuntimeException e) {
+            toast("Couldn't find the screensaver settings. Try Settings > System.");
+        }
     }
 
     private void leaveToTvHome() {
