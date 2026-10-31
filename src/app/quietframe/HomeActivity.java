@@ -2,6 +2,7 @@ package app.quietframe;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -380,6 +381,7 @@ public class HomeActivity extends Activity {
         controls.setOrientation(dock ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         controls.setGravity(Gravity.END);
         if (prefs.is(Prefs.INPUTS, "on")) controls.addView(pill("Inputs", "c:inputs", v -> openInputs()));
+        if (prefs.is(Prefs.PHOTOS, "on")) controls.addView(pill("Photos", "c:photos", v -> startScreensaver()));
         controls.addView(pill("All apps", "c:apps", v -> openAllApps()));
         controls.addView(pill("Settings", "c:settings", v -> openSettings()));
         for (int i = 0; i < controls.getChildCount(); i++) {
@@ -462,7 +464,9 @@ public class HomeActivity extends Activity {
 
     private boolean focusControls() {
         View v = lastControlTag == null ? null : home.findViewWithTag(lastControlTag);
-        if (v == null) v = home.findViewWithTag(prefs.is(Prefs.INPUTS, "on") ? "c:inputs" : "c:apps");
+        if (v == null) v = home.findViewWithTag("c:inputs");
+        if (v == null) v = home.findViewWithTag("c:photos");
+        if (v == null) v = home.findViewWithTag("c:apps");
         return v != null && v.requestFocus();
     }
 
@@ -729,12 +733,15 @@ public class HomeActivity extends Activity {
         list.addView(option(Prefs.CLOCK, "Clock", new String[]{"12", "24"}, new String[]{"12-hour", "24-hour"}, refresh));
         list.addView(option(Prefs.DATE, "Date", new String[]{"on", "off"}, new String[]{"Show", "Hide"}, refresh));
         list.addView(option(Prefs.INPUTS, "Inputs button", new String[]{"on", "off"}, new String[]{"Show", "Hide"}, refresh));
+        list.addView(option(Prefs.PHOTOS, "Photos button", new String[]{"on", "off"}, new String[]{"Show", "Hide"}, refresh));
 
         list.addView(heading("Home"));
         list.addView(tagged(panelRow("Apps on Home", homeKeys().size() + "  ›", v -> openEditor(null)), "s:editor"));
         list.addView(tagged(panelRow("Home button opens QuietFrame",
                 HomeRedirect.isEnabled(this) ? "On  ›" : "Off  ›", v -> openHomeButtonHelp()), "s:redirect"));
         list.addView(tagged(panelRow("Open the TV's own home", "›", v -> leaveToTvHome()), "s:tvhome"));
+        list.addView(tagged(panelRow("Screensaver and photo albums", "›",
+                v -> startSafely(new Intent(Settings.ACTION_DREAM_SETTINGS))), "s:dream"));
         list.addView(tagged(panelRow("TV settings", "›", v -> startSafely(new Intent(Settings.ACTION_SETTINGS))), "s:tv"));
 
         list.addView(heading("About"));
@@ -1050,6 +1057,19 @@ public class HomeActivity extends Activity {
         card.addView(stay, linear(-1, -2, 0, px(20), 0, 0));
         card.addView(panelRow("Open the TV's own home", "›", v -> leaveToTvHome()));
         openPanel(holder, stay, 0x99000000);
+    }
+
+    // Starts the TV's screensaver now: on Google TV that's Ambient mode with your Google Photos.
+    // SystemUI's Somnambulator is the "start screensaver now" entry point Android has carried since 4.2.
+    private void startScreensaver() {
+        try {
+            startActivity(new Intent(Intent.ACTION_MAIN)
+                    .setComponent(new ComponentName("com.android.systemui", "com.android.systemui.Somnambulator"))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } catch (RuntimeException e) {
+            toast("This TV can't start the screensaver directly. Opening its settings.");
+            startSafely(new Intent(Settings.ACTION_DREAM_SETTINGS));
+        }
     }
 
     private void leaveToTvHome() {

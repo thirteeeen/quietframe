@@ -18,6 +18,7 @@ final class Prefs {
     static final String CLOCK = "clock";             // 12 | 24
     static final String DATE = "date";               // on | off
     static final String INPUTS = "inputs";           // on | off
+    static final String PHOTOS = "photos";           // on | off: the button that starts the screensaver
     static final String LAST_APP = "last_app";
     static final String ROTATED_AT = "rotated_at";
     private static final String HOME_APPS = "home_apps";
@@ -69,6 +70,7 @@ final class Prefs {
             case CLOCK: return "12";
             case DATE: return "on";
             case INPUTS: return "on";
+            case PHOTOS: return "on";
             default: return "";
         }
     }
